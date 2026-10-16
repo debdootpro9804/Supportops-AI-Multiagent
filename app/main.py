@@ -1,7 +1,10 @@
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 
-app= FastAPI(
+from app.db.session import check_database_connection
+
+app = FastAPI(
     title="SupportOps AI",
     description="Customer support triage and resolution platform",
     version="0.1.0",
@@ -20,3 +23,19 @@ def root() -> dict[str, str]:
 @app.get("/health/live", tags=["health"])
 def liveness() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/ready", tags=["health"])
+def readiness() -> dict[str, str]:
+    try:
+        check_database_connection()
+    except (SQLAlchemyError, RuntimeError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable",
+        ) from exc
+
+    return {
+        "status": "ready",
+        "database": "ok",
+    }
